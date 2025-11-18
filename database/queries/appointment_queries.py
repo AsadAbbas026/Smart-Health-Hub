@@ -158,7 +158,7 @@ def get_available_slots(doctor_id: int, appointment_date: datetime, day_name: st
         availability = session.query(DoctorAvailability).filter(
             DoctorAvailability.doctor_id == doctor_id,
             DoctorAvailability.day_of_week == day_name
-        ).first()
+        ).all()
 
         if not availability:
             return []  # Doctor not available

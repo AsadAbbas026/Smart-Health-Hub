@@ -38,20 +38,22 @@ def get_default_index(page_key_to_menu_map):
     try:
         default_index = menu_options.index(selected_menu_option)
     except ValueError:
-        default_index = 0 # Default to the first item (Dashboard)
+        default_index = 1 # Default to the second item (Dashboard)
     
     return default_index
 
 
-def patient_sidebar(): 
-    """Render the sidebar menu for patients."""
-    # Get the dynamically calculated default index
-    default_index = get_default_index(PATIENT_PAGE_TO_MENU)
-    
+def patient_sidebar():
+    # Determine default index
+    if "page_index" in st.session_state:
+        default_index = st.session_state["page_index"]
+    else:
+        default_index = get_default_index(PATIENT_PAGE_TO_MENU)
+
     with st.sidebar:
         selected = option_menu(
             menu_title="Patient Menu",
-            options=list(PATIENT_PAGE_TO_MENU.values()), # Use values as options
+            options=list(PATIENT_PAGE_TO_MENU.values()),
             icons=[
                 "chat-dots",
                 "house",
@@ -62,11 +64,12 @@ def patient_sidebar():
                 "person",
                 "box-arrow-right",
             ],
-            # Pass the dynamically calculated index value here
-            default_index=default_index, 
-            key="patient_sidebar",
+            default_index=default_index,
+            key="patient_sidebar_widget",
         )
+
     return selected
+
 
 
 def doctor_sidebar():

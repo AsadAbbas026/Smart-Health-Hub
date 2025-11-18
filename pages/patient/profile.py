@@ -16,7 +16,6 @@ def show_patient_profile():
 
     try:
         patient = get_patient_profile(user["email"])
-        print(patient)
     except Exception as e:
         st.error(f"Error fetching profile: {e}")
         return

@@ -32,11 +32,12 @@ def get_doctor_slots(doctor_id):
             (
                 s.availability_id,
                 s.day_of_week,
-                s.start_time,
-                s.end_time
+                s.start_time.strftime("%I:%M %p") if s.start_time else None,
+                s.end_time.strftime("%I:%M %p") if s.end_time else None
             )
             for s in slots
         ]
+
     except Exception as e:
         print(f"[ORM ERROR] get_doctor_slots: {e}")
         return []

@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_cookies_manager import EncryptedCookieManager
+from streamlit_cookies_manager import encrypted_cookie_manager
 import os
 import json
 from dotenv import load_dotenv
@@ -17,7 +17,7 @@ from pages.doctor.share_documents import show_shared_documents
 from database.create_tables import create_tables
 from pages.util.menu import patient_sidebar, doctor_sidebar
 
-import notifications
+#import notifications
 
 load_dotenv()
 
@@ -48,14 +48,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-cookies = EncryptedCookieManager(
+cookies = encrypted_cookie_manager.EncryptedCookieManager(
     prefix="smart_health_hub_",
-    password=os.getenv("ENCRYPTED_COOKIE_KEY", "default_key")  # store safely, don’t hardcode in production
+    password=os.getenv("ENCRYPTED_COOKIE_KEY", "default_key")
 )
 if not cookies.ready():
     st.stop()
 
-create_tables()
+@st.cache_resource
+def initialize_database():
+    from database.create_tables import create_tables
+    create_tables()
+
+initialize_database()
 
 # -------------------------------------------------
 # MAIN FUNCTION
@@ -87,14 +92,13 @@ def main():
     if st.session_state.page == "logout":
         st.session_state.user = None
         st.session_state.page = "auth"
-        st.session_state.registration_success = False
         st.query_params.clear()
         if "last_page" in cookies:
-            cookies.delete("last_page")
+            del cookies["last_page"]
         st.rerun()
 
     # --- Sync query params if provided in URL ---
-    query_page = st.query_params.get("page", [None])[0]
+    query_page = st.query_params.get("page", None)
     if query_page and query_page != st.session_state.page:
         st.session_state.page = query_page
 
@@ -113,15 +117,17 @@ def main():
                 "<h1 style='font-size: 3rem; margin-bottom: -10px;'>Smart Health Hub 🧑‍⚕️</h1>",
                 unsafe_allow_html=True
             )
+            if "auth_tab" not in st.session_state:
+                st.session_state.auth_tab = "Login"
+
             login_tab, register_tab = st.tabs(["Login", "Register"])
+
             with login_tab:
                 show_login(cookies)
+
             with register_tab:
                 show_register()
-                if st.session_state.get("registration_success", False):
-                    st.session_state.page = "auth"
-                    st.session_state.registration_success = False
-                    st.rerun()
+                
         return
 
     # -------------------------------------------------
@@ -139,7 +145,18 @@ def main():
     # PATIENT ROUTES
     # -------------------------------------------------
     if role == "patient":
-        selected = patient_sidebar()
+        # If navigate_back was pressed, force the sidebar to remount
+        if st.session_state.get("page_override") == "patient_dashboard":
+            if "patient_sidebar_widget" in st.session_state:
+                # Remove old widget state so it re-reads page_index
+                del st.session_state["patient_sidebar_widget"]
+            # Set the page_index for Dashboard highlight
+            st.session_state["page_index"] = 1  # Dashboard index
+
+        # Render the sidebar (option_menu reads page_index if available)
+        selected_label = patient_sidebar()  # returns menu name like "Chats"
+
+        # Map menu label to page key
         page_map = {
             "Chats": "chat_dashboard",
             "Dashboard": "patient_dashboard",
@@ -151,11 +168,23 @@ def main():
             "Logout": "logout",
         }
 
-        selected_page = page_map.get(selected, st.session_state.page)
-        if st.session_state.page != selected_page:
-            update_last_page(selected_page)
+        # Determine page to render
+        page_to_render = st.session_state.get("page_override", None)
+        if page_to_render is None:
+            page_to_render = page_map.get(selected_label, st.session_state.page)
+        else:
+            # Remove page_override after using it once
+            st.session_state.pop("page_override", None)
 
-        # Render patient page
+        # Only update if changed
+        if st.session_state.page != page_to_render:
+            st.session_state.page = page_to_render
+            # No need to manually update patient_sidebar; page_index handles highlight
+            if user:
+                cookies["last_page"] = page_to_render
+
+
+        # Render pages
         if st.session_state.page == "chat_dashboard":
             from pages.patient.chat_dashboard import show_chat_dashboard
             show_chat_dashboard()
@@ -178,9 +207,11 @@ def main():
             from pages.patient.profile import show_patient_profile
             show_patient_profile()
         elif st.session_state.page == "logout":
-            update_last_page("auth")
             st.session_state.user = None
+            st.session_state.page = "auth"
             st.query_params.clear()
+            if "last_page" in cookies:
+                del cookies["last_page"]
             st.rerun()
 
     # -------------------------------------------------

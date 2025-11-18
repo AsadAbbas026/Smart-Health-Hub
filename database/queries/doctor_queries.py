@@ -42,6 +42,15 @@ def get_doctor_by_email(email: str):
     finally:
         session.close()
 
+def get_doctor_name_by_user_id(user_id: str):
+    """Fetch doctor name using user_id (the same UID stored in Firebase)."""
+    session = SessionLocal()
+    try:
+        doctor = session.query(Doctor).filter(Doctor.user_id == user_id).first()
+        return doctor.name if doctor else "Unknown Doctor"
+    finally:
+        session.close()
+
 # ✅ Doctor utilities
 def get_doctors(specialization: str = None):
     with SessionLocal() as session:

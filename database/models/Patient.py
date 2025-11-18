@@ -10,6 +10,7 @@ class Patient(Base):
     user_id = Column(String(255), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     phone_number = Column(String(20))
+    email = Column(String(255), unique=True, nullable=False)
     date_of_birth = Column(Date)
     gender = Column(String(20))
     created_at = Column(DateTime, default=datetime.utcnow)

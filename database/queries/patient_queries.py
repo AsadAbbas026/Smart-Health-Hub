@@ -5,12 +5,13 @@ from database.models.User import User
 from utils.hash_utils import hash_password
 from datetime import datetime
 
-def insert_patient_local(uid, name, phone=None, dob=None, gender=None):
+def insert_patient_local(uid, name, email, phone=None, dob=None, gender=None):
     session = SessionLocal()
     try:
         patient = Patient(
             user_id=uid,
             name=name,
+            email=email,
             phone_number=phone,
             date_of_birth=dob,
             gender=gender

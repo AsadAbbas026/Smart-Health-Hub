@@ -53,12 +53,20 @@ def register_user(data):
 
         db.reference(f"users/{uid}").set(user_data)
 
-        insert_user_local(uid, data["email"], hash_password(data['password']), data['name'], data["role"])
+        insert_user_local(
+            uid,
+            data["email"],
+            hash_password(data['password']),
+            data["name"],
+            data["role"],
+            is_verified=data.get("is_verified", False)  # <- add this
+        )
         
         if data["role"] == "patient":
             insert_patient_local(
                 uid,
                 data["name"],
+                email=data["email"],
                 phone=data.get("phone"),
                 dob=data.get("dob"),
                 gender=data.get("gender")

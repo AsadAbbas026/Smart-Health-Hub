@@ -2,7 +2,7 @@
 from database.connection import SessionLocal, get_connection
 from database.models.User import User, UserRole
 
-def insert_user_local(uid, email, password, name, role):
+def insert_user_local(uid, email, password, name, role, is_verified=False):
     session = SessionLocal()
     try:
         user = User(
@@ -10,7 +10,8 @@ def insert_user_local(uid, email, password, name, role):
             email=email,
             password_hash=password,
             name=name,
-            role=UserRole(role)
+            role=UserRole(role),
+            is_verified=is_verified
         )
         session.add(user)
         session.commit()
