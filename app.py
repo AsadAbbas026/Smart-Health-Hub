@@ -62,6 +62,39 @@ def initialize_database():
 
 initialize_database()
 
+def handle_logout():
+    # Clear all session state related to user and pages
+    keys_to_clear = [
+        "user",
+        "page",
+        "page_override",
+        "auth_tab",
+        "last_selected",
+        "page_index",
+        "patient_sidebar_widget",
+        "doctor_sidebar_widget",
+    ]
+    for key in keys_to_clear:
+        st.session_state.pop(key, None)
+
+    # Clear cookies
+    for key in cookies.keys():
+        del cookies[key]
+    cookies.save()
+
+    # Clear query params
+    st.query_params.clear()
+
+    # Force the app to auth page
+    st.session_state.page = "auth"
+
+    # Stop sidebar from overriding page
+    st.session_state.user = None
+
+    # Rerun the app
+    st.rerun()
+
+
 # -------------------------------------------------
 # MAIN FUNCTION
 # -------------------------------------------------
@@ -74,7 +107,7 @@ def main():
         st.session_state.last_selected = None
 
     # --- Load user from cookie if session is empty ---
-    if not st.session_state.user:
+    if "user" not in st.session_state:
         user_cookie = cookies.get("user")
         last_page_cookie = cookies.get("last_page")
         if user_cookie:
@@ -87,15 +120,6 @@ def main():
                 st.session_state.user = None
 
     user = st.session_state.get("user", None)
-
-    # --- Handle logout ---
-    if st.session_state.page == "logout":
-        st.session_state.user = None
-        st.session_state.page = "auth"
-        st.query_params.clear()
-        if "last_page" in cookies:
-            del cookies["last_page"]
-        st.rerun()
 
     # --- Sync query params if provided in URL ---
     query_page = st.query_params.get("page", None)
@@ -154,7 +178,12 @@ def main():
             st.session_state["page_index"] = 1  # Dashboard index
 
         # Render the sidebar (option_menu reads page_index if available)
-        selected_label = patient_sidebar()  # returns menu name like "Chats"
+        selected_label = patient_sidebar()
+        print(f"Selected Label is: {selected_label}")
+        # Immediately handle logout
+        if selected_label == "Logout":
+            handle_logout()  # sidebar is reset inside
+            return  # skip rest of the page logic
 
         # Map menu label to page key
         page_map = {
