@@ -52,7 +52,7 @@ def show_book_appointment():
     if "step" not in st.session_state: st.session_state.step = 1
     if "form_data" not in st.session_state: st.session_state.form_data = {}
 
-    steps = ["Select Specialization", "Select Doctor", "Select Date & Slot", "Select Treatment", "Confirm", "Admit Card"]
+    steps = ["Select Specialization", "Select Doctor", "Select Date & Slot", "Select Treatment", "Confirm Appointment", "Admit Card"]
 
     # --- STEP 1: Select Specialization ---
     if st.session_state.step == 1:
@@ -89,7 +89,7 @@ def show_book_appointment():
         appt_date = st.date_input("Appointment Date", min_value=date.today())
         if appt_date:
             slots = get_available_slots(doctor_id, appt_date, appt_date.strftime("%A"))
-
+            
             if slots and isinstance(slots[0], str):
                 slot_options = slots
             else:
@@ -141,7 +141,7 @@ def show_book_appointment():
         st.subheader(steps[4])
         patient = get_patient_by_email(user["email"])
         patient_id, name, phone, dob, gender = patient.patient_id, patient.name, patient.phone_number, patient.date_of_birth, patient.gender
-        st.write(f"### Confirm Appointment")
+        
         st.write(f"**Doctor:** {st.session_state.form_data['doctor_name']}  \n**Treatment:** {st.session_state.form_data['treatment_name']}  \n**Date:** {st.session_state.form_data['appointment_date']}  \n**Slot:** {st.session_state.form_data['slot']}")
         if st.button("Book Appointment"):
             ref = str(uuid.uuid4())[:8]

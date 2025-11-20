@@ -44,6 +44,8 @@ def get_default_index(page_key_to_menu_map):
 
 
 def patient_sidebar():
+    if "user" not in st.session_state or st.session_state.user is None:
+        return None  # or "Logout" if you want a placeholder
     # Determine default index
     if "page_index" in st.session_state:
         default_index = st.session_state["page_index"]

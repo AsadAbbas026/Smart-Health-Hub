@@ -14,40 +14,15 @@ from pages.doctor.appointments import show_appointments
 from pages.doctor.profile import show_profile
 from pages.doctor.share_documents import show_shared_documents
 
-from database.create_tables import create_tables
 from pages.util.menu import patient_sidebar, doctor_sidebar
-
-#import notifications
+from database.create_tables import create_tables
 
 load_dotenv()
-
 st.set_page_config(page_title="Smart Health Hub", layout="wide")
 
-# -------------------------------------------------
-# Setup and initial configs
-# -------------------------------------------------
-st.markdown(
-    """
-    <script>
-    window.uploadBaseURL = "http://localhost:8501/Uploads/";
-    </script>
-    """,
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    """
-    <style>
-        .st-emotion-cache-6awftf {display: none;}
-        .st-emotion-cache-gi0tri {display: none;}
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
+# -----------------------------
+# Initialize cookies
+# -----------------------------
 cookies = encrypted_cookie_manager.EncryptedCookieManager(
     prefix="smart_health_hub_",
     password=os.getenv("ENCRYPTED_COOKIE_KEY", "default_key")
@@ -55,15 +30,19 @@ cookies = encrypted_cookie_manager.EncryptedCookieManager(
 if not cookies.ready():
     st.stop()
 
+# -----------------------------
+# Initialize database
+# -----------------------------
 @st.cache_resource
 def initialize_database():
-    from database.create_tables import create_tables
     create_tables()
-
 initialize_database()
 
+# -----------------------------
+# Logout function
+# -----------------------------
 def handle_logout():
-    # Clear all session state related to user and pages
+    # Clear all relevant session keys
     keys_to_clear = [
         "user",
         "page",
@@ -72,7 +51,7 @@ def handle_logout():
         "last_selected",
         "page_index",
         "patient_sidebar_widget",
-        "doctor_sidebar_widget",
+        "doctor_sidebar_widget"
     ]
     for key in keys_to_clear:
         st.session_state.pop(key, None)
@@ -86,220 +65,197 @@ def handle_logout():
     st.query_params.clear()
 
     # Force the app to auth page
-    st.session_state.page = "auth"
-
-    # Stop sidebar from overriding page
     st.session_state.user = None
-
-    # Rerun the app
+    st.session_state.page = "auth"
     st.rerun()
 
 
-# -------------------------------------------------
-# MAIN FUNCTION
-# -------------------------------------------------
-def main():
-    # --- Initialize session state ---
-    if "page" not in st.session_state:
-        st.session_state.page = "auth"
-        st.session_state.user = None
-        st.session_state.registration_success = False
-        st.session_state.last_selected = None
+# -----------------------------
+# Helper to update last page
+# -----------------------------
+def update_last_page(page_key):
+    st.session_state.page = page_key
+    if st.session_state.user:
+        cookies["last_page"] = page_key
 
-    # --- Load user from cookie if session is empty ---
-    if "user" not in st.session_state:
-        user_cookie = cookies.get("user")
-        last_page_cookie = cookies.get("last_page")
-        if user_cookie:
-            try:
-                st.session_state.user = json.loads(user_cookie)
-                # Restore last page if available
-                if last_page_cookie:
-                    st.session_state.page = last_page_cookie
-            except Exception:
-                st.session_state.user = None
+
+# -----------------------------
+# Auth screens
+# -----------------------------
+def show_auth_screens():
+    col1, _, col3 = st.columns([0.45, 0.05, 0.50])
+    with col1:
+        st.image(
+            "assets/images/healthy-people-carrying-different-icons_53876-66139.png",
+            width=700
+        )
+    with col3:
+        st.markdown(
+            "<h1 style='font-size: 3rem; margin-bottom: -10px;'>Smart Health Hub 🧑‍⚕️</h1>",
+            unsafe_allow_html=True
+        )
+
+        if "auth_tab" not in st.session_state:
+            st.session_state.auth_tab = "Login"
+
+        login_tab, register_tab = st.tabs(["Login", "Register"])
+        with login_tab:
+            show_login(cookies)
+        with register_tab:
+            show_register()
+
+
+# -----------------------------
+# Patient pages
+# -----------------------------
+def show_patient_pages():
+    selected_label = patient_sidebar() if st.session_state.user else None
+    if selected_label == "Logout":
+        handle_logout()
+        return
+
+    page_map = {
+        "Chats": "chat_dashboard",
+        "Dashboard": "patient_dashboard",
+        "Book Appointment": "book_appointment",
+        "Your Appointments": "your_appointments",
+        "Health Records": "health_records",
+        "Prescriptions": "prescriptions",
+        "Profile": "profile"
+    }
+
+    page_to_render = page_map.get(selected_label, st.session_state.page)
+    st.session_state.page = page_to_render  # update session
+    update_last_page(page_to_render)        # save last page
+
+    pages = {
+        "chat_dashboard": "pages.patient.chat_dashboard.show_chat_dashboard",
+        "patient_dashboard": "pages.patient.dashboard.show_dashboard",
+        "book_appointment": "pages.patient.book_appointment.show_book_appointment",
+        "your_appointments": "pages.patient.your_appointment.show_your_appointments",
+        "health_records": "pages.patient.documents.show_documents",
+        "prescriptions": "pages.patient.prescriptions.show_prescriptions",
+        "profile": "pages.patient.profile.show_patient_profile"
+    }
+
+    if page_to_render == "chat_dashboard":
+        user = st.session_state.get("user")
+        if user:
+            uid = user["uid"]
+            role = user["role"]
+
+            if role == "patient":
+                from pages.patient.chat_dashboard import fetch_recent_chats
+                if "recent_chats" not in st.session_state:
+                    st.session_state.recent_chats = fetch_recent_chats(uid)
+
+    if page_to_render in pages:
+        module_path, func_name = pages[page_to_render].rsplit(".", 1)
+        mod = __import__(module_path, fromlist=[func_name])
+        getattr(mod, func_name)()
+
+# -----------------------------
+# Doctor pages
+# -----------------------------
+def show_doctor_pages():
+    selected_label = doctor_sidebar() if st.session_state.user else None
+    if selected_label == "Logout":
+        handle_logout()
+        return
+
+    page_map = {
+        "Chats": "chat_dashboard",
+        "Dashboard": "doctor_dashboard",
+        "Schedule": "schedule",
+        "Appointments": "appointments",
+        "Treatments": "treatments",
+        "Shared Documents": "shared_documents",
+        "Prescriptions": "prescriptions",
+        "Profile": "profile"
+    }
+
+    page_to_render = page_map.get(selected_label, st.session_state.page)
+    st.session_state.page = page_to_render  # update session
+    update_last_page(page_to_render)        # save last page
+
+    pages = {
+        "chat_dashboard": "pages.doctor.chat_dashboard.show_chat_dashboard",
+        "doctor_dashboard": "pages.doctor.dashboard.show_doctor_dashboard",
+        "schedule": "pages.doctor.schedule.show_schedule",
+        "appointments": "pages.doctor.appointments.show_appointments",
+        "treatments": "pages.doctor.treatment.show_treatments",
+        "shared_documents": "pages.doctor.share_documents.show_shared_documents",
+        "prescriptions": "pages.doctor.prescriptions.show_prescriptions",
+        "profile": "pages.doctor.profile.show_profile"
+    }
+
+    if page_to_render == "chat_dashboard":
+        user = st.session_state.get("user")
+        if user:
+            uid = user["uid"]
+            role = user["role"]
+
+            if role == "doctor":
+                from pages.doctor.chat_dashboard import fetch_recent_chats
+                if "recent_chats" not in st.session_state:
+                    st.session_state.recent_chats = fetch_recent_chats(uid)
+
+    if page_to_render in pages:
+        module_path, func_name = pages[page_to_render].rsplit(".", 1)
+        mod = __import__(module_path, fromlist=[func_name])
+        getattr(mod, func_name)()
+
+
+# -----------------------------
+# Main app
+# -----------------------------
+def main():
+    # --- Load user and last page from cookie first ---
+    user_cookie = cookies.get("user")
+    last_page_cookie = cookies.get("last_page")
+
+    if user_cookie:
+        try:
+            st.session_state.user = json.loads(user_cookie)
+        except:
+            st.session_state.user = None
+    else:
+        st.session_state.user = None
+
+    # --- Set initial page ---
+    if "page" not in st.session_state:
+        if st.session_state.user:
+            role = st.session_state.user["role"]
+            if role == "patient":
+                st.session_state.page = last_page_cookie or "patient_dashboard"
+            elif role == "doctor":
+                st.session_state.page = last_page_cookie or "doctor_dashboard"
+            else:
+                st.session_state.page = "auth"
+        else:
+            st.session_state.page = "auth"
 
     user = st.session_state.get("user", None)
 
-    # --- Sync query params if provided in URL ---
-    query_page = st.query_params.get("page", None)
-    if query_page and query_page != st.session_state.page:
-        st.session_state.page = query_page
-
-    # -------------------------------------------------
-    # AUTH SCREENS
-    # -------------------------------------------------
+    # --- Render auth or dashboards ---
     if not user or st.session_state.page == "auth":
-        col1, col2, col3 = st.columns([0.45, 0.05, 0.50])
-        with col1:
-            st.image(
-                "assets/images/healthy-people-carrying-different-icons_53876-66139.png",
-                width=700
-            )
-        with col3:
-            st.markdown(
-                "<h1 style='font-size: 3rem; margin-bottom: -10px;'>Smart Health Hub 🧑‍⚕️</h1>",
-                unsafe_allow_html=True
-            )
-            if "auth_tab" not in st.session_state:
-                st.session_state.auth_tab = "Login"
-
-            login_tab, register_tab = st.tabs(["Login", "Register"])
-
-            with login_tab:
-                show_login(cookies)
-
-            with register_tab:
-                show_register()
-                
-        return
-
-    # -------------------------------------------------
-    # DASHBOARDS
-    # -------------------------------------------------
-    role = user["role"].lower()
-
-    # Helper to update last page in cookies
-    def update_last_page(page_key):
-        st.session_state.page = page_key
-        if user:
-            cookies["last_page"] = page_key
-
-    # -------------------------------------------------
-    # PATIENT ROUTES
-    # -------------------------------------------------
-    if role == "patient":
-        # If navigate_back was pressed, force the sidebar to remount
-        if st.session_state.get("page_override") == "patient_dashboard":
-            if "patient_sidebar_widget" in st.session_state:
-                # Remove old widget state so it re-reads page_index
-                del st.session_state["patient_sidebar_widget"]
-            # Set the page_index for Dashboard highlight
-            st.session_state["page_index"] = 1  # Dashboard index
-
-        # Render the sidebar (option_menu reads page_index if available)
-        selected_label = patient_sidebar()
-        print(f"Selected Label is: {selected_label}")
-        # Immediately handle logout
-        if selected_label == "Logout":
-            handle_logout()  # sidebar is reset inside
-            return  # skip rest of the page logic
-
-        # Map menu label to page key
-        page_map = {
-            "Chats": "chat_dashboard",
-            "Dashboard": "patient_dashboard",
-            "Book Appointment": "book_appointment",
-            "Your Appointments": "your_appointments",
-            "Health Records": "health_records",
-            "Prescriptions": "prescriptions",
-            "Profile": "profile",
-            "Logout": "logout",
-        }
-
-        # Determine page to render
-        page_to_render = st.session_state.get("page_override", None)
-        if page_to_render is None:
-            page_to_render = page_map.get(selected_label, st.session_state.page)
-        else:
-            # Remove page_override after using it once
-            st.session_state.pop("page_override", None)
-
-        # Only update if changed
-        if st.session_state.page != page_to_render:
-            st.session_state.page = page_to_render
-            # No need to manually update patient_sidebar; page_index handles highlight
-            if user:
-                cookies["last_page"] = page_to_render
-
-
-        # Render pages
-        if st.session_state.page == "chat_dashboard":
-            from pages.patient.chat_dashboard import show_chat_dashboard
-            show_chat_dashboard()
-        elif st.session_state.page == "patient_dashboard":
-            from pages.patient.dashboard import show_dashboard
-            show_dashboard()
-        elif st.session_state.page == "book_appointment":
-            from pages.patient.book_appointment import show_book_appointment
-            show_book_appointment()
-        elif st.session_state.page == "your_appointments":
-            from pages.patient.your_appointment import show_your_appointments
-            show_your_appointments()
-        elif st.session_state.page == "health_records":
-            from pages.patient.documents import show_documents
-            show_documents()
-        elif st.session_state.page == "prescriptions":
-            from pages.patient.prescriptions import show_prescriptions
-            show_prescriptions()
-        elif st.session_state.page == "profile":
-            from pages.patient.profile import show_patient_profile
-            show_patient_profile()
-        elif st.session_state.page == "logout":
-            st.session_state.user = None
-            st.session_state.page = "auth"
-            st.query_params.clear()
-            if "last_page" in cookies:
-                del cookies["last_page"]
-            st.rerun()
-
-    # -------------------------------------------------
-    # DOCTOR ROUTES
-    # -------------------------------------------------
-    elif role == "doctor":
-        selected = doctor_sidebar()
-        page_map = {
-            "Chats": "chat_dashboard",
-            "Dashboard": "doctor_dashboard",
-            "Schedule": "schedule",
-            "Appointments": "appointments",
-            "Treatments": "treatments",
-            "Shared Documents": "shared_documents",
-            "Prescriptions": "prescriptions",
-            "Profile": "profile",
-            "Logout": "logout",
-        }
-
-        selected_page = page_map.get(selected, st.session_state.page)
-        if st.session_state.page != selected_page:
-            update_last_page(selected_page)
-
-        # Render doctor page
-        if st.session_state.page == "chat_dashboard":
-            from pages.doctor.chat_dashboard import show_chat_dashboard
-            show_chat_dashboard()
-        elif st.session_state.page == "doctor_dashboard":
-            show_doctor_dashboard()
-        elif st.session_state.page == "schedule":
-            show_schedule()
-        elif st.session_state.page == "appointments":
-            show_appointments()
-        elif st.session_state.page == "treatments":
-            show_treatments()
-        elif st.session_state.page == "shared_documents":
-            show_shared_documents()
-        elif st.session_state.page == "prescriptions":
-            from pages.doctor.prescriptions import show_prescriptions
-            show_prescriptions()
-        elif st.session_state.page == "profile":
-            show_profile()
-        elif st.session_state.page == "logout":
-            update_last_page("auth")
-            st.session_state.user = None
-            st.query_params.clear()
-            st.rerun()
-
-    # -------------------------------------------------
-    # INVALID ROLE
-    # -------------------------------------------------
+        show_auth_screens()
+    elif user["role"] == "patient":
+        show_patient_pages()
+    elif user["role"] == "doctor":
+        show_doctor_pages()
     else:
-        st.error("Invalid user role.")
-        update_last_page("auth")
+        st.error("Invalid role")
+        st.session_state.page = "auth"
         st.query_params.clear()
         st.rerun()
-    
-    if user:
+
+    # -----------------------------
+    # Save cookies ONCE at the very end
+    # -----------------------------
+    if st.session_state.user:
         cookies.save()
+
 
 if __name__ == "__main__":
     main()

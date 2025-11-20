@@ -152,29 +152,29 @@ def create_appointment(patient_id: int, doctor_id: int, treatment_id: int,
             session.rollback()
             return f"❌ Error creating appointment: {e}"
 
-# ✅ Get available time slots for a given doctor/date
 def get_available_slots(doctor_id: int, appointment_date: datetime, day_name: str):
     with SessionLocal() as session:
-        availability = session.query(DoctorAvailability).filter(
+        availabilities = session.query(DoctorAvailability).filter(
             DoctorAvailability.doctor_id == doctor_id,
             DoctorAvailability.day_of_week == day_name
         ).all()
 
-        if not availability:
+        if not availabilities:
             return []  # Doctor not available
-
-        start_time = datetime.combine(appointment_date, availability.start_time)
-        end_time = datetime.combine(appointment_date, availability.end_time)
 
         # Generate 30-min slots
         slot_duration = timedelta(minutes=30)
         all_slots = []
-        current_start = start_time
 
-        while current_start + slot_duration <= end_time:
-            slot_str = f"{current_start.strftime('%H:%M')} - {(current_start + slot_duration).strftime('%H:%M')}"
-            all_slots.append(slot_str)
-            current_start += slot_duration
+        for availability in availabilities:
+            start_time = datetime.combine(appointment_date, availability.start_time)
+            end_time = datetime.combine(appointment_date, availability.end_time)
+
+            current_start = start_time
+            while current_start + slot_duration <= end_time:
+                slot_str = f"{current_start.strftime('%H:%M')} - {(current_start + slot_duration).strftime('%H:%M')}"
+                all_slots.append(slot_str)
+                current_start += slot_duration
 
         # Fetch already booked slots
         booked_slots = [
@@ -185,7 +185,9 @@ def get_available_slots(doctor_id: int, appointment_date: datetime, day_name: st
             ).all()
         ]
 
+        # Return available slots after removing booked ones
         return [slot for slot in all_slots if slot not in booked_slots]
+
 
 def cancel_appointment(appointment_id: int, patient_id: int):
     """Cancel a patient's appointment and notify the doctor."""

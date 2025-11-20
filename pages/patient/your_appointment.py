@@ -79,6 +79,7 @@ def render_aggrid_with_chat_button(df):
         if (!topWindow.hasChatBridgeListener) {
             topWindow.hasChatBridgeListener = true;
             topWindow.addEventListener("message", (e) => {
+                console.log("This is the JS and Python Bridge");
                 if (e.data && e.data.type === "chat_open") {
                     const detail = e.data.detail;
                     const params = new URLSearchParams(topWindow.location.search);
@@ -99,9 +100,11 @@ def render_aggrid_with_chat_button(df):
     js_event = query_params.get("chat_open")
 
     if js_event:
+        print(f"JS event available {js_event}")
         try:
             data = json.loads(js_event)
             if data:
+                print(f"Data to send on the chat dashboard is: {data}")
                 st.session_state["chat_data"] = {
                     "doctor_id": data["doctor_id"],
                     "patient_id": data["patient_id"],

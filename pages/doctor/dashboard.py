@@ -21,7 +21,6 @@ def show_doctor_dashboard():
     st.header("Doctor Dashboard", divider="gray")
 
     doctor= get_doctor_by_email(user["email"])
-    print(doctor)
 
     if not doctor:
         st.warning("Profile not found.")
@@ -36,7 +35,7 @@ def show_doctor_dashboard():
         cols[3].metric("License Number", doctor.license_number or "N/A")
 
     appointments = get_appointments_for_doctor(user["email"])
-    print(appointments)
+
     if not appointments:
         st.info("No appointments found.")
         return
