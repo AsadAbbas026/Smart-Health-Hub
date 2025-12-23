@@ -97,7 +97,7 @@ def show_treatments():
 
         treatments = get_treatments_by_doctor(session, doctor_id)
 
-        col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
+        col1, col2, col3 = st.columns([1.8, 0.5, 0.5])
         with col1:
             if st.button("Add New Treatment", type="primary"):
                 add_treatment_dialog(doctor_id)

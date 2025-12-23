@@ -2,6 +2,7 @@
 from database.models import SharedDocument
 from database.models import MedicalDocument
 from database.models import Patient
+from database.models import Appointment
 from datetime import datetime
 
 from database.connection import SessionLocal
@@ -25,7 +26,7 @@ def share_documents_with_doctor(appointment_id: int, patient_id: int, doctor_id:
 
 
 def get_shared_documents_for_doctor(doctor_id: int):
-    """Fetch all documents shared with a particular doctor."""
+    """Fetch all documents shared with a particular doctor, including appointment reference numbers."""
     db = SessionLocal()
     result = (
         db.query(
@@ -37,11 +38,14 @@ def get_shared_documents_for_doctor(doctor_id: int):
             MedicalDocument.description,
             MedicalDocument.file_path,
             SharedDocument.doctor_id,
+            Appointment.reference_number  # <-- include reference number
         )
         .join(MedicalDocument, SharedDocument.document_id == MedicalDocument.document_id)
         .join(Patient, SharedDocument.patient_id == Patient.patient_id)
+        .join(Appointment, SharedDocument.appointment_id == Appointment.appointment_id)  # <-- join
         .filter(SharedDocument.doctor_id == doctor_id)
         .all()
     )
     db.close()
     return result
+

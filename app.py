@@ -42,6 +42,7 @@ initialize_database()
 # Logout function
 # -----------------------------
 def handle_logout():
+    print("logging out, off to the login page")
     # Clear all relevant session keys
     keys_to_clear = [
         "user",
@@ -125,8 +126,11 @@ def show_patient_pages():
     }
 
     page_to_render = page_map.get(selected_label, st.session_state.page)
-    st.session_state.page = page_to_render  # update session
-    update_last_page(page_to_render)        # save last page
+    if st.session_state.get("page") != page_to_render:
+        print("Setting st.session_state.page =", page_to_render)
+        st.session_state.page = page_to_render
+        update_last_page(page_to_render)
+
 
     pages = {
         "chat_dashboard": "pages.patient.chat_dashboard.show_chat_dashboard",
@@ -145,9 +149,9 @@ def show_patient_pages():
             role = user["role"]
 
             if role == "patient":
-                from pages.patient.chat_dashboard import fetch_recent_chats
+                from pages.patient.chat_dashboard import fetch_recent_chats_for_patient
                 if "recent_chats" not in st.session_state:
-                    st.session_state.recent_chats = fetch_recent_chats(uid)
+                    st.session_state.recent_chats = fetch_recent_chats_for_patient(uid)
 
     if page_to_render in pages:
         module_path, func_name = pages[page_to_render].rsplit(".", 1)
@@ -175,8 +179,12 @@ def show_doctor_pages():
     }
 
     page_to_render = page_map.get(selected_label, st.session_state.page)
-    st.session_state.page = page_to_render  # update session
-    update_last_page(page_to_render)        # save last page
+    if st.session_state.get("page") != page_to_render:
+        print("Setting st.session_state.page =", page_to_render)
+        st.session_state.page = page_to_render
+        update_last_page(page_to_render)
+
+
 
     pages = {
         "chat_dashboard": "pages.doctor.chat_dashboard.show_chat_dashboard",
@@ -196,9 +204,9 @@ def show_doctor_pages():
             role = user["role"]
 
             if role == "doctor":
-                from pages.doctor.chat_dashboard import fetch_recent_chats
+                from pages.doctor.chat_dashboard import fetch_recent_chats_for_doctor
                 if "recent_chats" not in st.session_state:
-                    st.session_state.recent_chats = fetch_recent_chats(uid)
+                    st.session_state.recent_chats = fetch_recent_chats_for_doctor(uid)
 
     if page_to_render in pages:
         module_path, func_name = pages[page_to_render].rsplit(".", 1)
@@ -254,8 +262,10 @@ def main():
     # Save cookies ONCE at the very end
     # -----------------------------
     if st.session_state.user:
-        cookies.save()
-
+        if st.session_state.get("cookies_saved") != True:
+            print("Saving cookies 2")
+            cookies.save()
+            st.session_state.cookies_saved = True
 
 if __name__ == "__main__":
     main()

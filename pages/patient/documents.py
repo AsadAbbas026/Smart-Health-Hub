@@ -225,5 +225,4 @@ def show_documents():
 
     # ---------- Add Record Button ----------
     st.divider()
-    if st.button("➕ Add New Record"):
-        add_record_dialog(patient_id)
+    st.button(label="➕ Add New Record", on_click=lambda: add_record_dialog(patient_id))

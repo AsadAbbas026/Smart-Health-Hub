@@ -1,0 +1,65 @@
+<div id="status">Connecting...</div>
+<script>
+const callKey = "__CALL_KEY__";
+const wsUrl = "__BACKEND_URL__/ws/" + callKey;
+
+let pc = new RTCPeerConnection({
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { 
+      urls: "turn:global.relay.metered.ca:80",
+      username: "7ebdeec27259c13bf8bd281e",
+      credential: "7ebdeec27259c13bf8bd281e"
+    }
+  ]
+});
+
+let localStream;
+let ws = new WebSocket(wsUrl);
+
+ws.onmessage = async (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "offer") {
+    await pc.setRemoteDescription(msg);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    ws.send(JSON.stringify(answer));
+  } else if (msg.type === "answer") {
+    await pc.setRemoteDescription(msg);
+  } else if (msg.type === "ice") {
+    try {
+      await pc.addIceCandidate(msg.candidate);
+    } catch(e) { console.log(e); }
+  }
+};
+
+// Get mic
+navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(stream => {
+  localStream = stream;
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+});
+
+// Remote audio
+const audioEl = document.createElement("audio");
+audioEl.autoplay = true;
+document.body.appendChild(audioEl);
+
+pc.ontrack = (event) => {
+  audioEl.srcObject = event.streams[0];
+};
+
+pc.onicecandidate = (event) => {
+  if (event.candidate) {
+    ws.send(JSON.stringify({ type: "ice", candidate: event.candidate }));
+  }
+};
+
+// If initiator, create offer
+async function startCall() {
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  ws.send(JSON.stringify(offer));
+}
+
+startCall();
+</script>

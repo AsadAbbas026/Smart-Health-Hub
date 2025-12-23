@@ -67,24 +67,19 @@ def show_prescriptions():
                 ]
             )
 
-            cols = st.columns(4)
+            cols = st.columns(3)
             with cols[0]:
-                med_counts = df["Medication"].value_counts().reset_index()
-                med_counts.columns = ["Medication", "Count"]
-                st.plotly_chart(px.pie(med_counts, names="Medication", values="Count", title="Medication Distribution"), use_container_width=True)
-
-            with cols[1]:
                 patient_counts = df["Patient"].value_counts().reset_index()
                 patient_counts.columns = ["Patient", "Count"]
                 st.plotly_chart(px.bar(patient_counts, x="Patient", y="Count", title="Prescriptions by Patient"), use_container_width=True)
 
-            with cols[2]:
+            with cols[1]:
                 df["Created Date"] = pd.to_datetime(df["Created At"]).dt.date
                 date_counts = df["Created Date"].value_counts().reset_index()
                 date_counts.columns = ["Date", "Count"]
                 st.plotly_chart(px.line(date_counts, x="Date", y="Count", title="Prescriptions Over Time"), use_container_width=True)
 
-            with cols[3]:
+            with cols[2]:
                 df["Status"] = df["Created At"].apply(
                     lambda x: "Active" if (x.tz_localize(None) + pd.Timedelta(days=30)) > datetime.now() else "Expired"
                 )

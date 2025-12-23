@@ -7,7 +7,6 @@ from io import BytesIO
 from docx import Document
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 
-from pages.util.menu import doctor_sidebar
 from database.connection import SessionLocal
 from database.queries.share_document_queries import get_shared_documents_for_doctor
 from database.queries.doctor_queries import get_doctor_by_email
@@ -59,6 +58,11 @@ def show_shared_documents():
         return
 
     st.header("📁 Shared Documents", divider="gray")
+    # ---------- Search by Reference Number ----------
+    search_ref = st.text_input(
+        "🔍 Search by Reference Number",
+        placeholder="Enter the appointment reference number"
+    )
 
     # ---------- Fetch Data ----------
     db = SessionLocal()
@@ -79,11 +83,23 @@ def show_shared_documents():
         "Category",
         "Description",
         "File Path",
-        "Doctor ID"
+        "Doctor ID",
+        "Reference Number"  # <-- new column
     ])
 
     df["File Path"] = df["File Path"].apply(lambda p: p.replace("\\", "/"))
     df["Actions"] = "👁️ View | ⬇️ Download"
+    # ---------- Filter by Reference Number ----------
+    if search_ref:
+        # Make sure to use the correct column name
+        if "Reference Number" in df.columns:
+            df_filtered = df[df["Reference Number"].str.contains(search_ref.strip(), case=False, na=False)]
+            if df_filtered.empty:
+                st.info("No document found with this reference number.")
+            else:
+                df = df_filtered
+        else:
+            st.error("Reference Number column not found in the DataFrame.")
 
     # ---------- AgGrid Renderer ----------
     button_renderer = JsCode("""
