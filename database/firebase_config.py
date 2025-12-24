@@ -11,7 +11,7 @@ def init_firebase():
 
     cred_path = os.getenv(
         "FIREBASE_CREDENTIALS_PATH",
-        "/etc/secrets/firebase-service-account.json"
+        "/etc/secrets/smart-health-hub-93ab1-firebase-adminsdk-fbsvc-7bec0b6390.json"
     )
 
     cred = credentials.Certificate(cred_path)
