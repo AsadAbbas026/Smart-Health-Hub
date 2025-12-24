@@ -7,19 +7,20 @@ import psycopg2
 
 load_dotenv()
 
-DB_URL = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DB_URL, echo=False)  # echo=True prints SQL queries
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    echo=False
+)
+
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 
 def get_connection():
-    """Return a raw psycopg2 connection to PostgreSQL."""
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        database=os.getenv("DB_NAME", "smart_health_hub"),
-        user=os.getenv("DB_USER", "openpg"),
-        password=os.getenv("DB_PASSWORD", "openpgpwd"),
-        port=os.getenv("DB_PORT", "5432")
-    )
-
+    """Return a raw psycopg2 connection (Render-safe)."""
+    return psycopg2.connect(DATABASE_URL)
