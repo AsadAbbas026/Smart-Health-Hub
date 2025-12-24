@@ -17,7 +17,7 @@ def init_firebase():
     cred = credentials.Certificate(cred_path)
 
     firebase_admin.initialize_app(cred, {
-        "databaseURL": os.getenv("DATABASE_URL")
+        "databaseURL": os.getenv("FIREBASE_DATABASE_URL")
     })
 
 def get_chat_ref(patient_id, doctor_id):
