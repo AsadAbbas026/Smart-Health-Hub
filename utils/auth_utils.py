@@ -11,6 +11,7 @@ from utils.hash_utils import hash_password, verify_password
 from database.queries.user_queries import insert_user_local, get_user_by_email
 from database.queries.patient_queries import insert_patient_local, get_patient_by_user_id
 from database.queries.doctor_queries import insert_doctor_local
+from database.firebase_config import init_firebase
 
 # Load environment variables
 load_dotenv()
