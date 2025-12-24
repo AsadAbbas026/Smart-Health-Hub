@@ -19,14 +19,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 CONFIG_PATH = os.path.join("config", "smart-health-hub-93ab1-firebase-adminsdk-fbsvc-7bec0b6390.json")
 FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
 
-if firebase_admin._apps:
-    for app in list(firebase_admin._apps.values()):
-        firebase_admin.delete_app(app)
-
-cred = credentials.Certificate(CONFIG_PATH)
-firebase_admin.initialize_app(cred, {
-    'databaseURL': DATABASE_URL
-})
+init_firebase()
 
 def register_user(data):
     try:
