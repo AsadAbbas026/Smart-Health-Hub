@@ -189,14 +189,13 @@ def get_available_slots(doctor_id: int, appointment_date: datetime, day_name: st
         return [slot for slot in all_slots if slot not in booked_slots]
 
 
-def cancel_appointment(appointment_id: int, patient_id: int):
+def cancel_appointment(appointment_id: int):
     """Cancel a patient's appointment and notify the doctor."""
     with SessionLocal() as session:
         appointment = (
             session.query(Appointment)
             .filter(
                 Appointment.appointment_id == appointment_id,
-                Appointment.patient_id == patient_id
             )
             .first()
         )

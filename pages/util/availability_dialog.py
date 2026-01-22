@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import time
+from datetime import time, datetime
 from database.queries.availability_queries import (
     add_doctor_availability,
     update_doctor_availability,
@@ -31,9 +31,12 @@ def update_availability_dialog(doctor_id, slots):
     @st.dialog("Update Availability Slot")
     def form():
         slot_map = {
-            f"{s[1]}: {s[2].strftime('%I:%M %p')} - {s[3].strftime('%I:%M %p')}": s
+            f"{s[1]}: "
+            f"{datetime.strptime(s[2], '%I:%M %p').strftime('%I:%M %p')} - "
+            f"{datetime.strptime(s[3], '%I:%M %p').strftime('%I:%M %p')}": s
             for s in slots
         }
+
         selected = st.selectbox("Select Slot", options=list(slot_map.keys()))
         s_id, day, s_time, e_time = slot_map[selected]
 
@@ -42,16 +45,24 @@ def update_availability_dialog(doctor_id, slots):
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
             default=[day]
         )
-        start_time = st.time_input("Start Time", value=s_time)
-        end_time = st.time_input("End Time", value=e_time)
+
+        start_time = st.time_input(
+            "Start Time",
+            value=datetime.strptime(s_time, "%I:%M %p").time()
+        )
+        end_time = st.time_input(
+            "End Time",
+            value=datetime.strptime(e_time, "%I:%M %p").time()
+        )
 
         if st.button("Update Slot"):
-            success, msg = update_doctor_availability(doctor_id, s_id, days, start_time, end_time)
+            success, msg = update_doctor_availability(
+                doctor_id, s_id, days, start_time, end_time
+            )
             st.success(msg) if success else st.error(msg)
             st.rerun()
 
     form()
-
 
 def delete_availability_dialog(doctor_id, slots):
     @st.dialog("Delete Availability Slot")

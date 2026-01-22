@@ -1,36 +1,43 @@
 # notifications.py
 import streamlit as st
 
-# Inject JS to ask for notification permission only once
+# Ask permission once per browser
 st.components.v1.html("""
 <script>
 (async () => {
-  if (!("Notification" in window)) return;  // Browser does not support
+  if (!("Notification" in window)) return;
 
-  // Check localStorage to avoid asking every time
   if (!localStorage.getItem("notifs_enabled")) {
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
       localStorage.setItem("notifs_enabled", "true");
-      console.log("✅ Notifications enabled");
-    } else {
-      console.warn("Notifications permission denied");
     }
   }
 })();
 </script>
 """, height=0)
 
-def trigger_notification(title, body):
-    """Show a notification in the browser while the page is open."""
-    js_code = f"""
-    <script>
-    if (Notification.permission === "granted") {{
-        new Notification("{title}", {{
-            body: "{body}",
-            icon: "https://cdn-icons-png.flaticon.com/512/565/565547.png"
-        }});
-    }}
-    </script>
-    """
-    st.components.v1.html(js_code, height=0)
+
+def queue_notification(title, body):
+    st.session_state.setdefault("notifications", [])
+    st.session_state.notifications.append({
+        "title": title,
+        "body": body
+    })
+
+
+def render_notifications():
+    for n in st.session_state.get("notifications", []):
+        print(f"Notifications: {n}")
+        st.components.v1.html(f"""
+        <script>
+        if (Notification.permission === "granted") {{
+            new Notification("{n['title']}", {{
+                body: "{n['body']}"
+            }});
+        }}
+        </script>
+        """, height=0)
+
+    # Clear immediately (IMPORTANT)
+    st.session_state.notifications = []

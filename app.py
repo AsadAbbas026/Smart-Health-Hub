@@ -16,6 +16,7 @@ from pages.doctor.share_documents import show_shared_documents
 
 from pages.util.menu import patient_sidebar, doctor_sidebar
 from database.create_tables import create_tables
+from notifications import render_notifications
 
 load_dotenv()
 st.set_page_config(page_title="Smart Health Hub", layout="wide")
@@ -42,34 +43,27 @@ initialize_database()
 # Logout function
 # -----------------------------
 def handle_logout():
-    print("logging out, off to the login page")
-    # Clear all relevant session keys
+    print("Logging out… forcing login page")
+
+    # Clear session state
     keys_to_clear = [
-        "user",
-        "page",
-        "page_override",
-        "auth_tab",
-        "last_selected",
-        "page_index",
-        "patient_sidebar_widget",
-        "doctor_sidebar_widget"
+        "user", "page", "page_override", "auth_tab",
+        "last_selected", "page_index",
+        "patient_sidebar_widget", "doctor_sidebar_widget"
     ]
     for key in keys_to_clear:
         st.session_state.pop(key, None)
 
-    # Clear cookies
-    for key in cookies.keys():
-        del cookies[key]
-    cookies.save()
-
-    # Clear query params
-    st.query_params.clear()
-
-    # Force the app to auth page
     st.session_state.user = None
     st.session_state.page = "auth"
-    st.rerun()
 
+    # Override all cookies with empty values
+    for key in cookies.keys():
+        cookies[key] = ""  # Set empty string
+    cookies.save()
+
+    # Force rerun
+    st.rerun()
 
 # -----------------------------
 # Helper to update last page
@@ -229,6 +223,13 @@ def main():
             st.session_state.user = None
     else:
         st.session_state.user = None
+        cookies["last_page"] = "auth"  # ensure last_page defaults to auth
+
+    if "notifications" not in st.session_state:
+            st.session_state.notifications = []
+
+    # 🔔 RENDER NOTIFICATIONS HERE (ONCE)
+    render_notifications()
 
     # --- Set initial page ---
     if "page" not in st.session_state:

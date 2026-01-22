@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, date, timezone
 from database.connection import SessionLocal
 from database.queries.appointment_queries import (
     get_patient_appointments,
@@ -9,9 +9,36 @@ from database.queries.appointment_queries import (
     reschedule_appointment,
     get_available_slots
 )
-from notifications import trigger_notification
+from notifications import queue_notification
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
 import json
+
+def queue_upcoming_appointments_notifications(appointments_df):
+    """
+    appointments_df: a pandas DataFrame containing your patient appointments
+    Must include columns: 'appointment_date', 'slot', 'doctor_name'
+    """
+    from datetime import datetime
+
+    now = datetime.now(timezone.utc)
+    for _, row in appointments_df.iterrows():
+        appt_date = row.get("appointment_date")
+        slot = row.get("slot")
+        doctor = row.get("doctor_name", "Doctor")
+
+        if not appt_date:
+            continue
+
+        # Convert date to datetime if it's date
+        if isinstance(appt_date, date) and not isinstance(appt_date, datetime):
+            appt_date = datetime.combine(appt_date, datetime.min.time(), tzinfo=timezone.utc)
+
+        # Only notify for future appointments
+        if appt_date >= now:
+            queue_notification(
+                "Upcoming Appointment 🩺",
+                f"You have an appointment on {appt_date.strftime('%Y-%m-%d')} at {slot} with Dr. {doctor}"
+            )
 
 def render_aggrid_with_chat_button(df):
     # Ensure IDs exist
@@ -136,6 +163,9 @@ def show_your_appointments():
         if appointments.empty:
             st.info("No appointments found.")
             return
+        
+        # --- Queue notifications for upcoming appointments ---
+        queue_upcoming_appointments_notifications(appointments)
 
         cols = st.columns(4)
         with cols[0]:

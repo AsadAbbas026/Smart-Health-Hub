@@ -12,6 +12,7 @@ def send_welcome_email(to_email, name):
     smtp_port = int(os.getenv("SMTP_PORT", 587))
     smtp_user = os.getenv("SMTP_USER")
     smtp_password = os.getenv("SMTP_PASSWORD")
+    
 
     if not all([smtp_host, smtp_port, smtp_user, smtp_password]):
         print("SMTP configuration missing. Skipping email send.")
@@ -110,6 +111,11 @@ def send_otp_email(to_email: str, name: str, otp: str):
     smtp_port = int(os.getenv("SMTP_PORT", 587))
     smtp_user = os.getenv("SMTP_USER")
     smtp_password = os.getenv("SMTP_PASSWORD")
+
+    if smtp_password:
+        smtp_password = smtp_password.strip()
+
+    print(len(smtp_password))  # MUST print 16
 
     if not all([smtp_host, smtp_port, smtp_user, smtp_password]):
         print("SMTP configuration missing. Skipping OTP email send.")

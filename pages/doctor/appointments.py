@@ -1,4 +1,5 @@
 import streamlit as st
+from datetime import datetime, date, time
 from pages.util.menu import doctor_sidebar
 from database.connection import SessionLocal
 from database.queries.appointment_queries import get_appointments_for_doctor, cancel_appointment
@@ -18,7 +19,16 @@ def show_appointments():
 
     with SessionLocal() as session:
         appointments = get_appointments_for_doctor(user["email"])
+        now = datetime.now()  # current datetime
 
+        for appt in appointments:
+            # Only consider scheduled future appointments
+            if appt.status == "scheduled" and appt.appointment_date >= now:
+                st.session_state.setdefault("notifications", []).append({
+                    "title": "Upcoming Appointment 📌",
+                    "body": f"Appointment with {appt.patient.name} on {appt.appointment_date.strftime('%Y-%m-%d')} at {appt.time_slot}"
+                })
+                
         if not appointments:
             st.info("No appointments found.")
             return
@@ -62,6 +72,10 @@ def show_appointments():
                 patient_email, ref_num = cancel_appointment(cancel_appointment_id)
                 if patient_email:
                     send_cancellation_email_doctor(patient_email, ref_num)
+                    st.session_state.setdefault("notifications", []).append({
+                        "title": "Appointment Cancelled ❌",
+                        "body": f"Your appointment (Ref: {ref_num}) with Dr. {user['name']} has been cancelled."
+                    })
                     st.success(f"Appointment cancelled and notification sent to {patient_email}")
                     st.rerun()  # ✅ modern replacement for st.experimental_rerun()
                 else:

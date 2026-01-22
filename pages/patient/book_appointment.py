@@ -9,6 +9,7 @@ from database.queries.appointment_queries import (
 from database.queries.patient_queries import get_patient_by_email
 from database.queries.doctor_queries import get_doctor_email, get_treatments_by_doctor, get_doctors
 from database.queries.share_document_queries import share_documents_with_doctor
+from notifications import queue_notification
 
 import uuid
 
@@ -141,49 +142,85 @@ def show_book_appointment():
         st.subheader(steps[4])
         patient = get_patient_by_email(user["email"])
         patient_id, name, phone, dob, gender = patient.patient_id, patient.name, patient.phone_number, patient.date_of_birth, patient.gender
-        
-        st.write(f"**Doctor:** {st.session_state.form_data['doctor_name']}  \n**Treatment:** {st.session_state.form_data['treatment_name']}  \n**Date:** {st.session_state.form_data['appointment_date']}  \n**Slot:** {st.session_state.form_data['slot']}")
-        if st.button("Book Appointment"):
+
+        st.write(
+            f"**Doctor:** {st.session_state.form_data['doctor_name']}  \n"
+            f"**Treatment:** {st.session_state.form_data['treatment_name']}  \n"
+            f"**Date:** {st.session_state.form_data['appointment_date']}  \n"
+            f"**Slot:** {st.session_state.form_data['slot']}"
+        )
+
+        # Initialize flag to prevent multiple bookings
+        if "appointment_booked" not in st.session_state:
+            st.session_state.appointment_booked = False
+
+        # Book Appointment Button
+        if st.button("Book Appointment") and not st.session_state.appointment_booked:
+            st.session_state.appointment_booked = True  # Prevent double booking
+
             ref = str(uuid.uuid4())[:8]
             doctor_id = st.session_state.form_data["doctor_id"]
             treatment_id = st.session_state.form_data["treatment_id"]
             appointment_date = st.session_state.form_data["appointment_date"]
             slot = st.session_state.form_data["slot"]
 
-            appointment = create_appointment(patient_id, doctor_id, treatment_id, appointment_date, slot, ref)
-            print("Created Appointment:", appointment)
-            # Share patient's documents with the doctor
-            appointment_id = appointment.appointment_id
-            print("Appointment ID:", appointment_id)
-
-            # ✅ 2. Share patient's existing documents with the doctor
-            share_documents_with_doctor(
-                appointment_id=appointment_id,
-                patient_id=patient_id,
-                doctor_id=doctor_id
-            )
-            doctor_email = get_doctor_email(st.session_state.form_data["doctor_id"])
-            if doctor_email:
-                send_appointment_confirmation(
-                    user["email"],
-                    doctor_email,
-                    name,
-                    30,  # age placeholder
-                    gender,
-                    phone,
-                    st.session_state.form_data["doctor_name"],
-                    st.session_state.form_data["appointment_date"],
-                    st.session_state.form_data["slot"],
-                    ref,
+            # Try creating the appointment in DB
+            try:
+                appointment = create_appointment(
+                    patient_id,
+                    doctor_id,
+                    treatment_id,
+                    appointment_date,
+                    slot,
+                    ref
                 )
-            else:
-                st.warning("⚠️ Could not find doctor's email for notification.")
+                appointment_id = appointment.appointment_id
 
-            st.session_state.form_data["reference_number"] = ref
-            st.success(f"Appointment booked successfully! Reference No: {ref}")
-            st.session_state.step = 6
-            st.rerun()
+                # ✅ Share patient's existing documents with doctor
+                share_documents_with_doctor(
+                    appointment_id=appointment_id,
+                    patient_id=patient_id,
+                    doctor_id=doctor_id
+                )
 
+                # ✅ Send confirmation email if doctor email exists
+                doctor_email = get_doctor_email(doctor_id)
+                if doctor_email:
+                    send_appointment_confirmation(
+                        user["email"],
+                        doctor_email,
+                        name,
+                        30,  # age placeholder
+                        gender,
+                        phone,
+                        st.session_state.form_data["doctor_name"],
+                        appointment_date,
+                        slot,
+                        ref,
+                    )
+                else:
+                    st.warning("⚠️ Could not find doctor's email for notification.")
+
+                # ✅ Queue browser notification
+                queue_notification(
+                    "Appointment Confirmed ✅",
+                    f"Your appointment on {appointment_date} at {slot} with Dr. {st.session_state.form_data['doctor_name']} is confirmed."
+                )
+
+                # Save reference number in session state
+                st.session_state.form_data["reference_number"] = ref
+
+                # Show success message
+                st.success(f"Appointment booked successfully! Reference No: {ref}")
+
+                # Move to Step 6
+                st.session_state.step = 6
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Could not book appointment: {e}")
+                st.session_state.appointment_booked = False  # Reset flag so user can retry
+                
     # --- STEP 6: Generate Admit Card ---
     elif st.session_state.step == 6:
         st.subheader(steps[5])

@@ -2,11 +2,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import re
 from st_aggrid import AgGrid, GridOptionsBuilder
 from datetime import datetime, timezone
 from database.connection import SessionLocal
 from database.queries.prescription_queries import get_prescriptions_for_patient
-
+from notifications import queue_notification
 
 def show_prescriptions():
     user = st.session_state.get("user", None)
@@ -65,6 +66,50 @@ def show_prescriptions():
 
         # --- Compute status and dates ---
         df["Status"] = df.apply(get_status, axis=1)
+
+        # --- Queue notifications for active prescriptions with dosage consideration ---
+        active_prescriptions = df[df["Status"] == "Active"]
+
+        for _, row in active_prescriptions.iterrows():
+            medication = row["Medication"]
+            doctor = row["Doctor"]
+
+            # --- Parse duration intelligently ---
+            raw_duration = str(row["Duration (days)"])  # make sure it's string for regex
+            duration_days = 1  # default fallback
+
+            # Regex to extract number and optional unit
+            match = re.match(r"(\d+)\s*(day|days|month|months|year|years)?", raw_duration.strip().lower())
+            if match:
+                number = int(match.group(1))
+                unit = match.group(2) or "days"  # default to days if no unit
+
+                if "day" in unit:
+                    duration_days = number
+                elif "month" in unit:
+                    duration_days = number * 30  # approximate
+                elif "year" in unit:
+                    duration_days = number * 365  # approximate
+            else:
+                # fallback if regex didn't match
+                duration_days = 1
+
+            # --- Determine dosage per day ---
+            raw_dosage = row["Dosage"]
+            try:
+                dosage_count = int(raw_dosage)
+            except (TypeError, ValueError):
+                dosage_count = 1  # fallback if unspecified
+
+            # --- Queue notifications ---
+            # Here we queue one notification per dosage per day on page load
+            for dose_num in range(1, dosage_count + 1):
+                queue_notification(
+                    title=f"Medication Reminder 💊 ({dose_num}/{dosage_count})",
+                    body=f"Take {medication} prescribed by Dr. {doctor}. "
+                        f"Day 1 of {duration_days}."
+                )
+
         df["Created Date"] = df["Created At"].dt.date
 
         # --- Visualization Section ---

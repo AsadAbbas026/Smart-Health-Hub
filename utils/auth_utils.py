@@ -15,15 +15,15 @@ from database.firebase_config import init_firebase
 
 # Load environment variables
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-CONFIG_PATH = os.path.join("config", "smart-health-hub-93ab1-firebase-adminsdk-fbsvc-7bec0b6390.json")
+CONFIG_PATH = os.path.join("config", "smart-health-hub-ae7d3-firebase-adminsdk-fbsvc-07f70c4cc4.json")
 FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
 
 init_firebase()
 
 def register_user(data):
     try:
+        print(data)
         user = auth.create_user(
             email=data["email"],
             password=data["password"],
