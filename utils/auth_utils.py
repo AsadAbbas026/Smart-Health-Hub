@@ -23,7 +23,6 @@ init_firebase()
 
 def register_user(data):
     try:
-        print(data)
         user = auth.create_user(
             email=data["email"],
             password=data["password"],
@@ -95,7 +94,6 @@ def authenticate_user(email, password):
 
         user_info = response.json()
         uid = user_info.get("localId")
-        print("✅ Firebase authentication successful for UID:", uid)
         user_data = db.reference(f"users/{uid}").get()
         return user_data
 
@@ -114,8 +112,6 @@ def authenticate_user(email, password):
         if not verify_password(password, user.password_hash):
             print("❌ Invalid password locally")
             return None
-
-        print("✅ Local authentication successful for UID:", user.user_id)
 
         patient_data = None
         if user.role.value == "patient":
